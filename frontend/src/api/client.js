@@ -1,4 +1,6 @@
-const BASE = '/api'
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api'
 
 export async function startAnalysis(codeFiles, logFile) {
   const fd = new FormData()
@@ -10,7 +12,7 @@ export async function startAnalysis(codeFiles, logFile) {
     const err = await res.json().catch(() => ({ detail: 'Upload failed' }))
     throw new Error(err.detail || 'Upload failed')
   }
-  return res.json()  // { analysis_id, status }
+  return res.json()
 }
 
 export async function getAnalysis(id) {
