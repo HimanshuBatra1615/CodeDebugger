@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+
+  backend:
+    build: ./backend
+    container_name: codedebugger-backend
+    restart: unless-stopped
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - MODEL=${MODEL:-gemini-1.5-flash}
+      - MAX_SUGGESTIONS=${MAX_SUGGESTIONS:-10}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    container_name: codedebugger-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
