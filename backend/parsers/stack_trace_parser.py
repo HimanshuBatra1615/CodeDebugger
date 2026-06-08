@@ -1,34 +1,21 @@
-"""
-Stack trace frame extraction for Java, Python, Node.js, and Go runtimes.
-Each parser returns a list of StackFrame objects from a raw block of text.
-"""
+
 
 import re
 import os
 from models.schemas import StackFrame
 
-# ── Java ──────────────────────────────────────────────────────────────────────
-# at com.example.service.UserService.processUser(UserService.java:42)
-# at com.example.Main.<init>(Main.java:10)
 JAVA_FRAME = re.compile(
     r"\s+at\s+([\w$.<>]+)\.([\w$<>]+)\s*\(([\w$]+\.(?:java|kt|groovy|scala)):(\d+)\)"
 )
 
-# ── Python ────────────────────────────────────────────────────────────────────
-# File "/path/to/module.py", line 42, in function_name
 PYTHON_FRAME = re.compile(
     r'\s+File\s+"([^"]+\.py)",\s+line\s+(\d+),\s+in\s+([\w<>]+)'
 )
 
-# ── Node.js / TypeScript ──────────────────────────────────────────────────────
-# at FunctionName (path/to/file.js:42:15)
-# at path/to/file.js:42:15
 NODE_FRAME = re.compile(
     r"\s+at\s+(?:([\w.]+(?:\s+\[as\s+\w+\])?)\s+)?\(?([^()]+\.(?:js|ts|mjs|cjs)):(\d+):\d+\)?"
 )
 
-# ── Go ────────────────────────────────────────────────────────────────────────
-# /path/to/file.go:42 +0x...
 GO_FRAME = re.compile(r"([/\w._-]+\.go):(\d+)\s+\+0x")
 
 
@@ -37,13 +24,9 @@ def _basename(path: str) -> str:
 
 
 def parse_stack_frames(text: str) -> list[StackFrame]:
-    """
-    Detect the runtime from the text and extract all stack frames.
-    Returns the innermost (most application-specific) frames first.
-    """
+
     frames: list[StackFrame] = []
 
-    # Java / Kotlin / Groovy
     java_hits = JAVA_FRAME.findall(text)
     if java_hits:
         for class_name, method, file, line in java_hits:
@@ -55,7 +38,6 @@ def parse_stack_frames(text: str) -> list[StackFrame]:
             ))
         return _filter_app_frames(frames)
 
-    # Python
     python_hits = PYTHON_FRAME.findall(text)
     if python_hits:
         for filepath, line, func in python_hits:
@@ -67,7 +49,6 @@ def parse_stack_frames(text: str) -> list[StackFrame]:
             ))
         return frames
 
-    # Node.js
     node_hits = NODE_FRAME.findall(text)
     if node_hits:
         for func, filepath, line in node_hits:
@@ -83,7 +64,6 @@ def parse_stack_frames(text: str) -> list[StackFrame]:
             ))
         return frames
 
-    # Go
     go_hits = GO_FRAME.findall(text)
     if go_hits:
         for filepath, line in go_hits:
@@ -99,10 +79,7 @@ def parse_stack_frames(text: str) -> list[StackFrame]:
 
 
 def _filter_app_frames(frames: list[StackFrame]) -> list[StackFrame]:
-    """
-    Prefer user application frames over standard-library / framework frames.
-    Heuristic: skip frames whose class starts with known stdlib prefixes.
-    """
+
     STDLIB_PREFIXES = (
         "java.", "javax.", "sun.", "com.sun.", "jdk.",
         "org.springframework.", "org.hibernate.",
