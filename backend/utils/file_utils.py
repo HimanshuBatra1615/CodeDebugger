@@ -1,17 +1,10 @@
-"""
-File utilities.
-
-  extract_files_from_zip  : unzip bytes into {path: content} dict
-  detect_primary_language : delegate to code_reader (re-exported for main.py)
-"""
 
 import io
 import zipfile
 import os
 
-from parsers.code_reader import CodeIndex, detect_primary_language   # noqa: F401  (re-export)
+from parsers.code_reader import CodeIndex, detect_primary_language  
 
-# Extensions we tolerate inside a zip archive
 _TEXT_EXTENSIONS = {
     ".java", ".kt", ".groovy", ".scala",
     ".py", ".js", ".ts", ".mjs", ".cjs",
@@ -23,15 +16,11 @@ _TEXT_EXTENSIONS = {
     ".md", ".txt",
 }
 
-_MAX_FILE_SIZE = 1_000_000  # 1 MB per file inside zip
+_MAX_FILE_SIZE = 1_000_000  
 
 
 def extract_files_from_zip(zip_bytes: bytes) -> dict[str, str]:
-    """
-    Extract text source files from a zip archive (given as bytes).
-    Returns a flat {path: content} dict.
-    Skips binaries, oversized files, and build/dependency directories.
-    """
+
     results: dict[str, str] = {}
 
     _SKIP_DIRS = {
