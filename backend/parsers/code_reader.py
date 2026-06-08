@@ -1,15 +1,8 @@
-"""
-Code reader.  Builds a CodeIndex from a dict of {filename: content} strings.
 
-CodeIndex provides:
-  - files        : {path: content}  (all readable source files)
-  - language_map : {path: language} (detected language per file)
-"""
 
 import os
 from dataclasses import dataclass, field
 
-# ── Language detection by extension ──────────────────────────────────────────
 
 EXT_TO_LANG: dict[str, str] = {
     ".java": "Java",
@@ -36,7 +29,6 @@ EXT_TO_LANG: dict[str, str] = {
     ".tsx": "TypeScript (React)",
 }
 
-# Extensions we skip (binary, build artefacts, etc.)
 SKIP_EXTENSIONS = {
     ".class", ".jar", ".war", ".ear",
     ".pyc", ".pyo", ".pyd",
@@ -47,7 +39,6 @@ SKIP_EXTENSIONS = {
     ".lock", ".sum",
 }
 
-# Directories we never recurse into
 SKIP_DIRS = {
     "node_modules", ".git", "__pycache__", ".gradle",
     "build", "dist", "target", ".next", ".nuxt",
@@ -62,17 +53,12 @@ class CodeIndex:
 
 
 def build_code_index(raw_files: dict[str, str]) -> CodeIndex:
-    """
-    Build a CodeIndex from a flat {filename: content} dict.
-    Keys may contain path separators (e.g. 'src/main/java/App.java').
-    """
+
     index = CodeIndex()
 
     for path, content in raw_files.items():
-        # Normalise separators
         clean_path = path.replace("\\", "/")
 
-        # Skip files in ignored directories
         parts = clean_path.split("/")
         if any(p in SKIP_DIRS for p in parts):
             continue
@@ -82,7 +68,7 @@ def build_code_index(raw_files: dict[str, str]) -> CodeIndex:
             continue
 
         if ext not in EXT_TO_LANG:
-            continue          # not a recognised source file
+            continue         
 
         index.files[clean_path] = content
         index.language_map[clean_path] = EXT_TO_LANG[ext]
