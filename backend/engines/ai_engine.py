@@ -1,19 +1,3 @@
-"""
-AI analysis engine — Google Gemini backend.
-
-Calls the Gemini API (gemini-1.5-flash by default — free tier) with a
-carefully structured prompt for each correlated error and parses the JSON
-response into Suggestion objects.
-
-If GEMINI_API_KEY is not set, falls back to realistic mock responses so
-the frontend can be developed and demoed without any API key.
-
-Free tier limits (gemini-1.5-flash):
-  - 15 requests per minute
-  - 1 500 requests per day
-  - 1 000 000 tokens per day
-"""
-
 import json
 import re
 import uuid
@@ -24,7 +8,6 @@ from config import get_settings
 
 settings = get_settings()
 
-# ── System prompt ─────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = (
     "You are a senior software engineer and debugging expert. "
@@ -37,7 +20,6 @@ SYSTEM_PROMPT = (
     "No markdown, no backticks, no preamble, no explanation outside the JSON object."
 )
 
-# ── Gemini client initialisation ──────────────────────────────────────────────
 
 _model = None
 
@@ -46,9 +28,6 @@ if settings.gemini_api_key:
         import google.generativeai as genai
 
         genai.configure(api_key=settings.gemini_api_key)
-
-        # Try with JSON response mode first (google-generativeai >= 0.7.0).
-        # Falls back to plain text mode for older SDK versions.
         try:
             _model = genai.GenerativeModel(
                 model_name=settings.model,
@@ -56,7 +35,7 @@ if settings.gemini_api_key:
                 generation_config=genai.GenerationConfig(
                     temperature=0.2,
                     max_output_tokens=1024,
-                    response_mime_type="application/json",   # forces JSON output
+                    response_mime_type="application/json",   
                 ),
             )
             print(f"[ai_engine] Gemini '{settings.model}' ready (JSON mode)")
@@ -78,7 +57,6 @@ else:
     print("[ai_engine] No GEMINI_API_KEY set — running in mock mode")
 
 
-# ── Prompt builder ────────────────────────────────────────────────────────────
 
 _RESPONSE_SCHEMA = """{
   "severity": "CRITICAL" | "ERROR" | "WARNING",
@@ -104,7 +82,6 @@ def _build_prompt(corr: CorrelatedError) -> str:
     )
 
 
-# ── Mock data (used when no API key is configured) ────────────────────────────
 
 _MOCK_POOL = [
     {
@@ -145,7 +122,6 @@ _MOCK_POOL = [
 ]
 
 
-# ── Response parsing ──────────────────────────────────────────────────────────
 
 def _parse_response(text: str) -> dict:
     """
@@ -173,7 +149,6 @@ def _parse_response(text: str) -> dict:
         except json.JSONDecodeError:
             pass
 
-    # Final fallback
     return {
         "severity": "ERROR",
         "root_cause": "Could not fully parse the AI response.",
@@ -183,7 +158,6 @@ def _parse_response(text: str) -> dict:
     }
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _to_suggestion(data: dict, corr: CorrelatedError) -> Suggestion:
     sev_str = str(data.get("severity", "ERROR")).upper()
@@ -220,7 +194,6 @@ async def _generate(prompt: str) -> str:
 _SEVERITY_ORDER = {"CRITICAL": 0, "ERROR": 1, "WARNING": 2, "INFO": 3}
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
 
 async def analyze_errors(correlated: list[CorrelatedError]) -> list[Suggestion]:
     """
@@ -229,7 +202,6 @@ async def analyze_errors(correlated: list[CorrelatedError]) -> list[Suggestion]:
     """
     items = correlated[: settings.max_suggestions]
 
-    # ── Mock mode ─────────────────────────────────────────────────────────────
     if not _model:
         suggestions: list[Suggestion] = []
         for i, corr in enumerate(items):
@@ -237,9 +209,6 @@ async def analyze_errors(correlated: list[CorrelatedError]) -> list[Suggestion]:
             suggestions.append(_to_suggestion(mock, corr))
         return _sort(suggestions)
 
-    # ── Live Gemini mode ──────────────────────────────────────────────────────
-    # Respect free-tier rate limit: 15 RPM → max 3 concurrent calls with
-    # a 0.5 s inter-call delay keeps well within the limit.
     semaphore = asyncio.Semaphore(3)
 
     async def _call_one(corr: CorrelatedError) -> Suggestion | None:
